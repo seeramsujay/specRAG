@@ -1,0 +1,20 @@
+# --- MCP Backend Core ---
+mcp>=1.0.0
+anyio>=4.0.0
+python-dotenv>=1.0.1
+pydantic>=2.0.0        # Vital for strict JSON schema enforcement
+
+# --- LLM Providers ---
+openai>=1.12.0
+google-generativeai>=0.5.0  # Standard Gemini SDK
+google-genai>=0.3.0       # Latest Google GenAI SDK (includes Multimodal Live)
+
+# --- Phase 1: Datasheet Ingestion (Azure Document Intelligence) ---
+azure-ai-documentintelligence>=1.0.0
+azure-core>=1.30.0
+
+# --- RAG & Node 1 (For Lab Machine Installation) ---
+chromadb>=0.4.0         # Local Vector DB for datasheet storage
+pypdf>=4.0.0           # PDF Datasheet parsing
+numpy>=1.24.0          # Data processing
+markdownify>=0.11.6    # HTML-to-Markdown conversion
