@@ -1,8 +1,8 @@
 # 🤝 SpecRAG Integration Guide (Node Handover)
 
-Hello Team! This document outlines what I (Node 2: Backend & AI) have completed, how the core Brain works, and exactly what the rest of the nodes need to do to hit our Phase 3/4 milestones seamlessly.
+Hello Team! This document outlines what I (Node 3: AI Engineering & Reasoning) have completed, how the core Brain works, and exactly what the rest of the nodes need to do to hit our Phase 3/4 milestones seamlessly.
 
-## 🟢 Node 1: Data Engineer (RAG)
+## 🟢 Node 1: RAG Data Engineering & Vector Architecture
 **Your Goal:** Feed the AI the exact datasheet context.
 **What I've done:** I have fully integrated the Gemini API with structured output enforcement. It mathematically cannot hallucinate JSON formats anymore. 
 **What I need from you:**
@@ -11,7 +11,7 @@ Hello Team! This document outlines what I (Node 2: Backend & AI) have completed,
 3. Once your local Vector DB (Chroma/FAISS) is working, import your function into `MCP_Server.py` and replace my placeholder.
 4. **Context Quality is King**: If your context misses the I2C registers, my AI will miss the I2C bug. Ensure table data from the PDFs is intact!
 
-## 🟠 Node 3: Frontend Developer (VS Code)
+## 🟠 Node 4: IDE Client & Developer UX
 **Your Goal:** Present the errors to the user gracefully.
 **What I've done:** The MCP Server is complete, error-proofed, and fully tested. It exposes a tool called `validate_hardware_code`.
 **What you need to do:**
@@ -34,14 +34,15 @@ Hello Team! This document outlines what I (Node 2: Backend & AI) have completed,
 3. If `status == "system_error"`, something broke (bad arguments, API timeout). Gracefully show a toast notification in VS code instead of a red squiggly line.
 4. If `status == "error"`, draw the red squiggly on the `line` returned, and put the `message` and `citation` in the hover tooltip.
 
-## 🟣 Node 4: DevOps & QA
-**Your Goal:** Evaluate system accuracy across the full stack.
-**What I've done:** I wrote a 100% coverage mock test suite for `MCP_Server.py` ensuring the script is bulletproof. (Check `Archives/testing/test.md` if you want to see the results).
+## 🟣 Node 2: AST Parsing & Backend Infrastructure
+**Your Goal:** Filter raw firmware code via AST parsing and route the data cleanly to prevent LLM context pollution.
+**What I've done:**
+1. I have set up the core validation framework and system prompt structure in `MCP_Server.py`.
+2. I've designed the validation response schema to accept code snippets and component names.
 **What I need from you:**
-1. Once Node 1 plugs in the live RAG, we need your 5 buggy `.cpp` files.
-2. Feed them to Node 3's frontend, or build a script that directly calls `MCP_Server.py`'s stdio stream.
-3. **Prompt Tuning Loop**: If the AI misses a bug, tell me! We will immediately tune the system prompt in `Archives/AGENT.md` or tell Node 1 to fix their chunking.
-4. Review the `README.md` and `CHANGELOG.md` I created to prep for the final judges' presentation.
+1. **AST Integration:** Target Arduino and ESP32 C++ syntax to programmatically extract only hardware-relevant lines (`pinMode`, `digitalWrite`, etc.).
+2. **Data Routing:** Package the parsed C++ code and the RAG context retrieved from Node 1, and route the unified payload to the AI evaluation module.
+3. **Local Server:** Finalize the FastAPI or Model Context Protocol server configuration to listen for incoming requests from Node 4's VS Code client.
 
 ---
 **Server Boot Command for Testing:**
