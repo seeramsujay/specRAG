@@ -26,13 +26,24 @@ Hello Team! This document outlines what I (Node 3: AI Engineering & Reasoning) h
    ```json
    {
      "status": "error" | "success" | "system_error",
+     "severity": "high" | "medium" | "low" | null,
      "line": 42,
      "message": "Register 0x3F is read-only.",
      "citation": "Datasheet Page 14, Table 3"
    }
    ```
-3. If `status == "system_error"`, something broke (bad arguments, API timeout). Gracefully show a toast notification in VS code instead of a red squiggly line.
+3. If `status == "system_error"`, something broke (bad arguments, API timeout). Gracefully show a toast notification in VS Code instead of a red squiggly line.
 4. If `status == "error"`, draw the red squiggly on the `line` returned, and put the `message` and `citation` in the hover tooltip.
+5. **Python API Integration**: Node 2 can import Node 3's evaluation functions directly for local python routing:
+   ```python
+   from MCP_Server import evaluate_logic, evaluate_logic_mock
+   
+   # For real evaluation:
+   result_dict = evaluate_logic(filtered_code, vector_context)
+   
+   # For dry run / mock validation:
+   result_dict = evaluate_logic_mock(filtered_code, vector_context)
+   ```
 
 ## 🟣 Node 2: AST Parsing & Backend Infrastructure
 **Your Goal:** Filter raw firmware code via AST parsing and route the data cleanly to prevent LLM context pollution.

@@ -26,6 +26,7 @@ app = Server("specrag-backend")
 # Define JSON Schema via Pydantic for LLM structured output mapping
 class HardwareValidationResult(BaseModel):
     status: str = Field(description="'error' or 'success'")
+    severity: Optional[str] = Field(None, description="Error severity: 'high', 'medium', 'low', or null if success")
     line: Optional[int] = Field(None, description="Exact line number of bug, or null if success")
     message: str = Field(description="A one-sentence explanation of the hardware violation")
     citation: str = Field(description="Specific section, table, or page proving the error. Empty if success.")
@@ -105,6 +106,67 @@ async def list_tools() -> list[Tool]:
         )
     ]
 
+def evaluate_logic_mock(filtered_code: str, vector_context: str) -> dict:
+    """
+    Phase 1 Mock: Ignores the input entirely and just spits out a perfectly
+    formatted JSON error, allowing the backend server to test its routing logic.
+    """
+    return {
+        "status": "error",
+        "severity": "high",
+        "line": 42,
+        "message": "Register 0x3F is read-only.",
+        "citation": "Datasheet Page 14, Table 3: Register Map"
+    }
+
+def evaluate_logic(filtered_code: str, vector_context: str) -> dict:
+    """
+    Phase 2 Real: Validates filtered C++ hardware code against retrieved vector context
+    using the configured LLM client. Returns a dictionary matching the HardwareValidationResult schema.
+    """
+    try:
+        system_prompt = get_agent_system_prompt()
+        user_prompt = f"Context:\n{vector_context}\n\nCode:\n{filtered_code}"
+        
+        client_type, client, model_name = get_llm_client()
+        logger.info(f"Evaluating logic using LLM provider '{client_type}' with model '{model_name}'...")
+        
+        if client_type in ("azure_openai", "openai"):
+            response = client.beta.chat.completions.parse(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                response_format=HardwareValidationResult,
+                temperature=0.1
+            )
+            result_json = response.choices[0].message.content
+            return json.loads(result_json)
+        elif client_type == "gemini":
+            model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
+            response = model.generate_content(
+                user_prompt,
+                generation_config=genai.GenerationConfig(
+                    response_mime_type="application/json",
+                    response_schema=HardwareValidationResult,
+                    temperature=0.1
+                )
+            )
+            return json.loads(response.text)
+        else:
+            raise ValueError("No LLM provider configuration found. Set GEMINI_API_KEY or AZURE_OPENAI_API_KEY in .env.")
+            
+    except Exception as e:
+        logger.error(f"Logic evaluation failed: {str(e)}")
+        return {
+            "status": "system_error",
+            "severity": "high",
+            "line": None,
+            "message": f"Logic evaluation failed: {str(e)}",
+            "citation": ""
+        }
+
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     """
@@ -114,12 +176,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         # ---------------------------------------------------------
         # PHASE 1: THE CONTRACT (MOCK ENDPOINT)
         # ---------------------------------------------------------
-        mock_response = {
-            "status": "error",
-            "line": 42,
-            "message": "Register 0x3F is read-only.",
-            "citation": "Datasheet Page 14, Table 3: Register Map"
-        }
+        code = arguments.get("code_snippet", "") if arguments else ""
+        component = arguments.get("component", "") if arguments else ""
+        mock_response = evaluate_logic_mock(code, f"Mock retrieved context for {component}...")
         return [TextContent(type="text", text=json.dumps(mock_response))]
 
     elif name == "validate_hardware_code":
@@ -127,13 +186,25 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         # PHASE 2/3: THE REAL IMPLEMENTATION
         # ---------------------------------------------------------
         if not arguments:
-            return [TextContent(type="text", text=json.dumps({"status": "system_error", "message": "Missing arguments."}))]
+            return [TextContent(type="text", text=json.dumps({
+                "status": "system_error",
+                "severity": "high",
+                "line": None,
+                "message": "Missing arguments.",
+                "citation": ""
+            }))]
             
         code = arguments.get("code_snippet")
         component = arguments.get("component")
         
         if not code or not component:
-            return [TextContent(type="text", text=json.dumps({"status": "system_error", "message": "Missing code_snippet or component parameter."}))]
+            return [TextContent(type="text", text=json.dumps({
+                "status": "system_error",
+                "severity": "high",
+                "line": None,
+                "message": "Missing code_snippet or component parameter.",
+                "citation": ""
+            }))]
         
         try:
             # 1. Retrieve context (either via Node 1/2 function or fallback mock)
@@ -151,46 +222,18 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             else:
                 context = f"Mock retrieved context for {component} from Node 1 DB..."
             
-            # 2. Construct LLM prompts
-            system_prompt = get_agent_system_prompt()
-            user_prompt = f"Context:\n{context}\n\nCode:\n{code}"
-            
-            # 3. Determine LLM provider and call the model
-            client_type, client, model_name = get_llm_client()
-            logger.info(f"Validating {component} code using LLM provider '{client_type}' with model '{model_name}'...")
-            
-            if client_type in ("azure_openai", "openai"):
-                response = client.beta.chat.completions.parse(
-                    model=model_name,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    response_format=HardwareValidationResult,
-                    temperature=0.1
-                )
-                result_text = response.choices[0].message.content
-            elif client_type == "gemini":
-                model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
-                response = model.generate_content(
-                    user_prompt,
-                    generation_config=genai.GenerationConfig(
-                        response_mime_type="application/json",
-                        response_schema=HardwareValidationResult,
-                        temperature=0.1
-                    )
-                )
-                result_text = response.text
-            else:
-                raise ValueError("No LLM provider configuration found. Set GEMINI_API_KEY or AZURE_OPENAI_API_KEY in .env.")
-            
-            return [TextContent(type="text", text=result_text)]
+            # 2. Run the evaluation
+            result = evaluate_logic(filtered_code=code, vector_context=context)
+            return [TextContent(type="text", text=json.dumps(result))]
             
         except Exception as e:
             logger.error(f"Analysis failed: {str(e)}")
             error_payload = {
                 "status": "system_error",
-                "message": f"Analysis failed: {str(e)}"
+                "severity": "high",
+                "line": None,
+                "message": f"Analysis failed: {str(e)}",
+                "citation": ""
             }
             return [TextContent(type="text", text=json.dumps(error_payload))]
             
