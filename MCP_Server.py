@@ -112,9 +112,84 @@ async def list_tools() -> list[Tool]:
 
 def evaluate_logic_mock(filtered_code: str, vector_context: str) -> dict:
     """
-    Phase 1 Mock: Ignores the input entirely and just spits out a perfectly
-    formatted JSON error, allowing the backend server to test its routing logic.
+    Phase 1 Mock: Evaluates predefined benchmark hardware bug scenarios
+    against filtered code snippets, returning structured results.
+    Defaults to the standard Phase 1 contract error if no scenario matches.
     """
+    if not filtered_code:
+        return {
+            "status": "error",
+            "severity": "high",
+            "line": 42,
+            "message": "Register 0x3F is read-only.",
+            "citation": "Datasheet Page 14, Table 3: Register Map"
+        }
+
+    lines = filtered_code.splitlines()
+
+    # Scenario 1: Incorrect Register Write (WHO_AM_I 0x75 is Read-Only)
+    if "0x75" in filtered_code or "WHO_AM_I" in filtered_code:
+        target_line = 14  # default fallback
+        for idx, line in enumerate(lines, 1):
+            if ("0x75" in line or "WHO_AM_I" in line) and "write" in line:
+                # If there's a next write line that attempts the invalid write
+                if idx < len(lines) and "write" in lines[idx]:
+                    target_line = idx + 1
+                else:
+                    target_line = idx
+                break
+            elif "write" in line and ("0x75" in line or "WHO_AM_I" in line):
+                target_line = idx
+                break
+        return {
+            "status": "error",
+            "severity": "high",
+            "line": target_line,
+            "message": "Attempted write to read-only register WHO_AM_I (0x75).",
+            "citation": "Datasheet Section 10.4, Register 0x75 (WHO_AM_I) description"
+        }
+
+    # Scenario 2: Missing I2C Transmission Start
+    if "Wire.write" in filtered_code and "beginTransmission" not in filtered_code:
+        target_line = 25  # default fallback
+        for idx, line in enumerate(lines, 1):
+            if "Wire.write" in line:
+                target_line = idx
+                break
+        return {
+            "status": "error",
+            "severity": "medium",
+            "line": target_line,
+            "message": "I2C write operations occurred without a preceding beginTransmission call.",
+            "citation": "Arduino Wire Library Reference: beginTransmission is required before write."
+        }
+
+    # Scenario 3: Pin Mode Mismatch (digitalWrite on INPUT pin)
+    if "pinMode" in filtered_code and "INPUT" in filtered_code and "digitalWrite" in filtered_code:
+        target_line = 10  # default fallback
+        for idx, line in enumerate(lines, 1):
+            if "digitalWrite" in line:
+                target_line = idx
+                break
+        return {
+            "status": "error",
+            "severity": "low",
+            "line": target_line,
+            "message": "digitalWrite called on pin configured as INPUT.",
+            "citation": "Arduino Reference: pinMode must be set to OUTPUT for digitalWrite."
+        }
+
+    # Scenario 4: Valid Configuration (Success)
+    if "pinMode" in filtered_code and "OUTPUT" in filtered_code and "digitalWrite" in filtered_code:
+        return {
+            "status": "success",
+            "severity": None,
+            "line": None,
+            "message": "No hardware issues detected.",
+            "citation": ""
+        }
+
+    # Default fallback (original mock behavior)
     return {
         "status": "error",
         "severity": "high",
