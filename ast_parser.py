@@ -83,8 +83,8 @@ def collect_hardware_symbols_and_nodes(node: Node, source: bytes, hw_nodes: set,
     """
     is_hw = False
     
-    # Preprocessor includes and defines are always kept
-    if node.type in ("preproc_include", "preproc_def"):
+    # Preprocessor includes, defines, and comments are always kept
+    if node.type in ("preproc_include", "preproc_def", "comment"):
         is_hw = True
         if node.type == "preproc_def":
             name_node = node.child_by_field_name("name")
@@ -242,36 +242,80 @@ def reconstruct_code(node: Node, source: bytes, kept_nodes: set, indent_level=0)
 
 def filter_hardware_logic(code_snippet: str) -> str:
     """
-    Parses a C++ code snippet and filters out all statements that are
-    unrelated to hardware control/registers. Returns the reconstructed,
-    clean C++ snippet. If parsing fails, returns the original snippet as fallback.
+    Parses a C++ code snippet and filters out statements unrelated to hardware control,
+    replacing them with blank lines to preserve the original 1-to-1 line number mapping.
     """
     if not parser:
         logger.warning("Parser not initialized. Returning original code snippet.")
         return code_snippet
-        
+
     if not code_snippet or not code_snippet.strip():
         return ""
-        
+
     try:
         source_bytes = code_snippet.encode("utf-8")
         tree = parser.parse(source_bytes)
-        
+
         hw_nodes = set()
         hw_symbols = set()
         collect_hardware_symbols_and_nodes(tree.root_node, source_bytes, hw_nodes, hw_symbols)
-        
-        # If no hardware operations were found, we provide a warning comment
-        # so Node 3 can quickly report success/no errors.
+
         if not hw_nodes:
-            return "// No hardware-relevant C++ code detected in this snippet.\n"
-            
+            # Return same number of empty lines to keep line count consistent
+            return "// No hardware-relevant C++ code detected in this snippet.\n" + "\n" * (code_snippet.count("\n"))
+
         kept_nodes = set()
         identify_kept_nodes(tree.root_node, source_bytes, hw_nodes, hw_symbols, kept_nodes)
-        
-        filtered_code = reconstruct_code(tree.root_node, source_bytes, kept_nodes).strip()
-        return filtered_code
-        
+
+        lines = code_snippet.splitlines()
+        kept_lines_flags = [False] * len(lines)
+
+        def mark_kept_lines(node: Node):
+            if node not in kept_nodes:
+                return
+
+            if node.type in ("preproc_include", "preproc_def", "expression_statement", "declaration", "assignment_expression", "comment"):
+                for r in range(node.start_point[0], node.end_point[0] + 1):
+                    if r < len(kept_lines_flags):
+                        kept_lines_flags[r] = True
+                return
+
+            if node.type == "function_definition":
+                body = node.child_by_field_name("body")
+                end_line = body.start_point[0] if body else node.end_point[0]
+                for r in range(node.start_point[0], end_line):
+                    if r < len(kept_lines_flags):
+                        kept_lines_flags[r] = True
+
+            elif node.type in ("if_statement", "while_statement", "for_statement"):
+                body = node.child_by_field_name("body")
+                if not body:
+                    body = node.child_by_field_name("consequence")
+                end_line = body.start_point[0] if body else node.end_point[0]
+                for r in range(node.start_point[0], end_line):
+                    if r < len(kept_lines_flags):
+                        kept_lines_flags[r] = True
+
+            elif node.type == "compound_statement":
+                if node.start_point[0] < len(kept_lines_flags):
+                    kept_lines_flags[node.start_point[0]] = True
+                if node.end_point[0] < len(kept_lines_flags):
+                    kept_lines_flags[node.end_point[0]] = True
+
+            for child in node.children:
+                mark_kept_lines(child)
+
+        mark_kept_lines(tree.root_node)
+
+        output_lines = []
+        for idx, flag in enumerate(kept_lines_flags):
+            if flag:
+                output_lines.append(lines[idx])
+            else:
+                output_lines.append("")
+
+        return "\n".join(output_lines)
+
     except Exception as e:
         logger.error("Error occurred while parsing C++ code: %s. Falling back to original code.", e)
         return code_snippet
