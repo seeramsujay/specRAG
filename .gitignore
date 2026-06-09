@@ -361,3 +361,6 @@ vite.config.ts.timestamp-*
 .vite/
 
 Archives/
+
+# Local ChromaDB Vector Store
+vector_store/

@@ -26,8 +26,8 @@ app = Server("specrag-backend")
 # Define JSON Schema via Pydantic for LLM structured output mapping
 class HardwareValidationResult(BaseModel):
     status: str = Field(description="'error' or 'success'")
-    severity: Optional[str] = Field(None, description="Error severity: 'high', 'medium', 'low', or null if success")
-    line: Optional[int] = Field(None, description="Exact line number of bug, or null if success")
+    severity: Optional[str] = Field(description="Error severity: 'high', 'medium', 'low', or null if success")
+    line: Optional[int] = Field(description="Exact line number of bug, or null if success")
     message: str = Field(description="A one-sentence explanation of the hardware violation")
     citation: str = Field(description="Specific section, table, or page proving the error. Empty if success.")
 
