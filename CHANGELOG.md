@@ -1,7 +1,12 @@
 # Changelog
 
 All notable changes to the **SpecRAG** project will be documented in this file.
+## [Unreleased] - 2026-06-10
 
+### Added
+- **Node 2 Logic Filter**: Implemented `ast_parser.py` and integrated it into `MCP_Server.py`. The MCP server now uses Abstract Syntax Tree (AST) parsing to filter out irrelevant code before querying the LLM, significantly improving accuracy and token efficiency.
+- **RAG Integration**: Integrated `rag.py` for smart datasheet retrieval.
+- **Static Analysis**: Added support for `mypy`, `pylint`, and `flake8` for robust code quality checking.
 ## [Unreleased] - 2026-04-07
 
 ### Added

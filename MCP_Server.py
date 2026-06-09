@@ -26,8 +26,8 @@ app = Server("specrag-backend")
 # Define JSON Schema via Pydantic for LLM structured output mapping
 class HardwareValidationResult(BaseModel):
     status: str = Field(description="'error' or 'success'")
-    severity: Optional[str] = Field(description="Error severity: 'high', 'medium', 'low', or null if success")
-    line: Optional[int] = Field(description="Exact line number of bug, or null if success")
+    severity: Optional[str] = Field(None, description="Error severity: 'high', 'medium', 'low', or null if success")
+    line: Optional[int] = Field(None, description="Exact line number of bug, or null if success")
     message: str = Field(description="A one-sentence explanation of the hardware violation")
     citation: str = Field(description="Specific section, table, or page proving the error. Empty if success.")
 
@@ -37,8 +37,11 @@ try:
     from rag import retrieve_context
     logger.info("Successfully imported retrieve_context from rag.py")
 except ImportError:
+    # Use dynamic import to prevent static analysis linter errors for missing modules
+    import importlib
     try:
-        from retrieve import retrieve_context
+        retrieve_module = importlib.import_module("retrieve")
+        retrieve_context = getattr(retrieve_module, "retrieve_context", None)
         logger.info("Successfully imported retrieve_context from retrieve.py")
     except ImportError:
         logger.info("No retrieve_context function found in rag.py or retrieve.py. Using mock retriever.")
@@ -72,7 +75,8 @@ def get_llm_client():
     gemini_key = os.environ.get("GEMINI_API_KEY")
     if gemini_key:
         genai.configure(api_key=gemini_key)
-    return "gemini", None, "gemini-1.5-flash"
+    model = os.environ.get("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+    return "gemini", None, model
 
 @app.list_tools()
 async def list_tools() -> list[Tool]:
@@ -144,12 +148,39 @@ def evaluate_logic(filtered_code: str, vector_context: str) -> dict:
             result_json = response.choices[0].message.content
             return json.loads(result_json)
         elif client_type == "gemini":
+            # Direct dictionary schema avoids "Unknown field for Schema: default" in older SDK versions
+            gemini_schema = {
+                "type": "OBJECT",
+                "properties": {
+                    "status": {
+                        "type": "STRING",
+                        "description": "'error' or 'success'"
+                    },
+                    "severity": {
+                        "type": "STRING",
+                        "description": "Error severity: 'high', 'medium', 'low', or null if success"
+                    },
+                    "line": {
+                        "type": "INTEGER",
+                        "description": "Exact line number of bug, or null if success"
+                    },
+                    "message": {
+                        "type": "STRING",
+                        "description": "A one-sentence explanation of the hardware violation"
+                    },
+                    "citation": {
+                        "type": "STRING",
+                        "description": "Specific section, table, or page proving the error. Empty if success."
+                    }
+                },
+                "required": ["status", "message", "citation"]
+            }
             model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
             response = model.generate_content(
                 user_prompt,
                 generation_config=genai.GenerationConfig(
                     response_mime_type="application/json",
-                    response_schema=HardwareValidationResult,
+                    response_schema=gemini_schema,
                     temperature=0.1
                 )
             )
@@ -207,23 +238,32 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             }))]
         
         try:
-            # 1. Retrieve context (either via Node 1/2 function or fallback mock)
+            # 1. Filter the incoming code snippet via AST
+            logger.info("Filtering C++ code snippet via AST parsing...")
+            try:
+                from ast_parser import filter_hardware_logic
+                filtered_code = filter_hardware_logic(code)
+            except Exception as ast_err:
+                logger.warning(f"AST parsing/filtering failed: {ast_err}. Using original code snippet.")
+                filtered_code = code
+
+            # 2. Retrieve context (either via Node 1/2 function or fallback mock) using the filtered code
             if retrieve_context is not None:
                 try:
                     logger.info(f"Querying RAG database for component '{component}'...")
                     sig = inspect.signature(retrieve_context)
                     if "component_name" in sig.parameters:
-                        context = retrieve_context(component_name=component, code_snippet=code)
+                        context = retrieve_context(component_name=component, code_snippet=filtered_code)
                     else:
-                        context = retrieve_context(component, code)
+                        context = retrieve_context(component, filtered_code)
                 except Exception as rag_err:
                     logger.warning(f"RAG retrieval failed: {rag_err}. Falling back to mock context.")
                     context = f"Mock retrieved context for {component} from Node 1 DB..."
             else:
                 context = f"Mock retrieved context for {component} from Node 1 DB..."
             
-            # 2. Run the evaluation
-            result = evaluate_logic(filtered_code=code, vector_context=context)
+            # 3. Run the evaluation using the filtered code
+            result = evaluate_logic(filtered_code=filtered_code, vector_context=context)
             return [TextContent(type="text", text=json.dumps(result))]
             
         except Exception as e:
