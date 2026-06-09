@@ -7,6 +7,7 @@ All notable changes to the **SpecRAG** project will be documented in this file.
 - **Node 2 Logic Filter**: Implemented `ast_parser.py` and integrated it into `MCP_Server.py`. The MCP server now uses Abstract Syntax Tree (AST) parsing to filter out irrelevant code before querying the LLM, significantly improving accuracy and token efficiency.
 - **RAG Integration**: Integrated `rag.py` for smart datasheet retrieval.
 - **Static Analysis**: Added support for `mypy`, `pylint`, and `flake8` for robust code quality checking.
+- **Node 4 VS Code Extension Client**: Developed the complete VS Code extension in TypeScript under `extension/`. Implemented a custom stdio MCP JSON-RPC client with handshake, debounced text changes and save triggers, diagnostic squigglies, premium Markdown hover citations, quick-fix actions (comment out, insert FIXME comment), and compiled and packaged the extension into `specrag-vscode-0.1.0.vsix`.
 ## [Unreleased] - 2026-04-07
 
 ### Added

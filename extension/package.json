@@ -1,0 +1,86 @@
+{
+  "name": "specrag-vscode",
+  "displayName": "SpecRAG Hardware Auditor",
+  "description": "Real-time, zero-hallucination hardware datasheet validation for C/C++ firmware.",
+  "version": "0.1.0",
+  "publisher": "specrag",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages",
+    "Education"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:cpp",
+    "onLanguage:c",
+    "onLanguage:arduino"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "specrag.validate",
+        "title": "SpecRAG: Validate Current File"
+      },
+      {
+        "command": "specrag.clearDiagnostics",
+        "title": "SpecRAG: Clear Diagnostics"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "SpecRAG Configuration",
+      "properties": {
+        "specrag.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "Path to the Python interpreter (e.g., 'python', 'python3', or path to your venv binary)."
+        },
+        "specrag.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to Server.py. If empty, the extension will look in the workspace root."
+        },
+        "specrag.defaultComponent": {
+          "type": "string",
+          "default": "MPU6050",
+          "description": "Default hardware component to use if no // @component <NAME> annotation is found."
+        },
+        "specrag.validationTrigger": {
+          "type": "string",
+          "enum": [
+            "onSave",
+            "onType",
+            "manual"
+          ],
+          "default": "onSave",
+          "description": "When to run SpecRAG validation."
+        },
+        "specrag.debouncingDelay": {
+          "type": "integer",
+          "default": 1500,
+          "description": "Delay in milliseconds before validating after you stop typing (only applies if trigger is set to onType)."
+        },
+        "specrag.useMock": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, runs validation against the mock server tool (validate_hardware_code_mock) offline."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "package": "npx @vscode/vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.75.0",
+    "typescript": "^5.3.3"
+  }
+}
