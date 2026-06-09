@@ -56,7 +56,7 @@ def get_llm_client():
     azure_key = os.environ.get("AZURE_OPENAI_API_KEY")
     azure_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
     
-    if azure_key and azure_endpoint:
+    if azure_key and azure_endpoint and "your-" not in azure_key and "your-resource-name" not in azure_endpoint:
         client = AzureOpenAI(
             api_key=azure_key,
             azure_endpoint=azure_endpoint,
@@ -66,14 +66,14 @@ def get_llm_client():
         return "azure_openai", client, model
 
     openai_key = os.environ.get("OPENAI_API_KEY")
-    if openai_key:
+    if openai_key and "your-" not in openai_key:
         client = OpenAI(api_key=openai_key)
         model = os.environ.get("OPENAI_MODEL_NAME", "gpt-4o")
         return "openai", client, model
 
     # Fallback to Gemini
     gemini_key = os.environ.get("GEMINI_API_KEY")
-    if gemini_key:
+    if gemini_key and "your-" not in gemini_key:
         genai.configure(api_key=gemini_key)
     model = os.environ.get("GEMINI_MODEL_NAME", "gemini-2.5-flash")
     return "gemini", None, model
