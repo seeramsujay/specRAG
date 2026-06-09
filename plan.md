@@ -11,7 +11,7 @@ Embedding & Indexing: Route the chunked datasheet data through an embedding mode
 
 Retrieval Algorithm: Engineer a hybrid search algorithm (combining keyword and vector search) to reliably retrieve the exact hardware constraints when queried for specific components and pins.
 
-Deliverable / API Contract: A standalone Python retrieval function: search_hardware_specs(component_name: str, query: str) -> str.
+Deliverable / API Contract: A standalone Python retrieval function: retrieve_context(component_name: str, query: str) -> str.
 
 Asynchronous Unblocker: Create a dummy version of this script that returns hardcoded text (e.g., "Absolute Maximum VIN is 3.3V") so the backend and AI nodes can test their systems immediately.
 

@@ -284,6 +284,7 @@ web_modules/
 
 # dotenv environment variable files
 .env
+env
 .env.*
 !.env.example
 
@@ -359,8 +360,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
-
-Archives/
 
 # Local ChromaDB Vector Store
 vector_store/
