@@ -8,6 +8,7 @@ import unittest
 workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, workspace_root)
 
+
 class TestSpecRAGMCP(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -17,7 +18,7 @@ class TestSpecRAGMCP(unittest.TestCase):
         if not os.path.exists(cls.venv_python):
             cls.venv_python = sys.executable
         cls.server_script = os.path.join(cls.workspace_root, "MCP_Server.py")
-        
+
         # Start server subprocess
         cls.process = subprocess.Popen(
             [cls.venv_python, cls.server_script],
@@ -25,16 +26,19 @@ class TestSpecRAGMCP(unittest.TestCase):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            bufsize=1
+            bufsize=1,
         )
         cls.req_id = 1
-        
+
         # Perform handshake
-        cls.send_request("initialize", {
-            "protocolVersion": "2024-11-05",
-            "capabilities": {},
-            "clientInfo": {"name": "test-client", "version": "1.0.0"}
-        })
+        cls.send_request(
+            "initialize",
+            {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": {"name": "test-client", "version": "1.0.0"},
+            },
+        )
         cls.send_notification("notifications/initialized")
 
     @classmethod
@@ -53,12 +57,12 @@ class TestSpecRAGMCP(unittest.TestCase):
             "jsonrpc": "2.0",
             "id": current_id,
             "method": method,
-            "params": params or {}
+            "params": params or {},
         }
         cls.req_id += 1
         cls.process.stdin.write(json.dumps(msg) + "\n")
         cls.process.stdin.flush()
-        
+
         # Read responses until we get the one with matching ID
         while True:
             line = cls.process.stdout.readline()
@@ -73,11 +77,7 @@ class TestSpecRAGMCP(unittest.TestCase):
 
     @classmethod
     def send_notification(cls, method, params=None):
-        msg = {
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params or {}
-        }
+        msg = {"jsonrpc": "2.0", "method": method, "params": params or {}}
         cls.process.stdin.write(json.dumps(msg) + "\n")
         cls.process.stdin.flush()
 
@@ -104,7 +104,9 @@ class TestSpecRAGMCP(unittest.TestCase):
         """Test 4: Verify mock validation tool schema includes 'code_snippet'."""
         resp = self.send_request("tools/list")
         tools = resp.get("result", {}).get("tools", [])
-        mock_tool = next(t for t in tools if t.get("name") == "validate_hardware_code_mock")
+        mock_tool = next(
+            t for t in tools if t.get("name") == "validate_hardware_code_mock"
+        )
         properties = mock_tool.get("inputSchema", {}).get("properties", {})
         self.assertIn("code_snippet", properties)
 
@@ -112,7 +114,9 @@ class TestSpecRAGMCP(unittest.TestCase):
         """Test 5: Verify mock validation tool schema includes 'component'."""
         resp = self.send_request("tools/list")
         tools = resp.get("result", {}).get("tools", [])
-        mock_tool = next(t for t in tools if t.get("name") == "validate_hardware_code_mock")
+        mock_tool = next(
+            t for t in tools if t.get("name") == "validate_hardware_code_mock"
+        )
         properties = mock_tool.get("inputSchema", {}).get("properties", {})
         self.assertIn("component", properties)
 
@@ -140,10 +144,13 @@ class TestSpecRAGMCP(unittest.TestCase):
   Wire.write(0x00);
   Wire.endTransmission();
 }"""
-        resp = self.send_request("tools/call", {
-            "name": "validate_hardware_code_mock",
-            "arguments": {"code_snippet": code, "component": "MPU6050"}
-        })
+        resp = self.send_request(
+            "tools/call",
+            {
+                "name": "validate_hardware_code_mock",
+                "arguments": {"code_snippet": code, "component": "MPU6050"},
+            },
+        )
         content = resp.get("result", {}).get("content", [])
         self.assertEqual(len(content), 1)
         data = json.loads(content[0].get("text"))
@@ -158,10 +165,13 @@ class TestSpecRAGMCP(unittest.TestCase):
   Wire.write(0x2D);
   Wire.write(0x08);
 }"""
-        resp = self.send_request("tools/call", {
-            "name": "validate_hardware_code_mock",
-            "arguments": {"code_snippet": code, "component": "ADXL345"}
-        })
+        resp = self.send_request(
+            "tools/call",
+            {
+                "name": "validate_hardware_code_mock",
+                "arguments": {"code_snippet": code, "component": "ADXL345"},
+            },
+        )
         content = resp.get("result", {}).get("content", [])
         self.assertEqual(len(content), 1)
         data = json.loads(content[0].get("text"))
@@ -178,10 +188,13 @@ class TestSpecRAGMCP(unittest.TestCase):
 void loop() {
   digitalWrite(3, HIGH);
 }"""
-        resp = self.send_request("tools/call", {
-            "name": "validate_hardware_code_mock",
-            "arguments": {"code_snippet": code, "component": "Arduino"}
-        })
+        resp = self.send_request(
+            "tools/call",
+            {
+                "name": "validate_hardware_code_mock",
+                "arguments": {"code_snippet": code, "component": "Arduino"},
+            },
+        )
         content = resp.get("result", {}).get("content", [])
         self.assertEqual(len(content), 1)
         data = json.loads(content[0].get("text"))
@@ -198,10 +211,13 @@ void loop() {
 void loop() {
   digitalWrite(3, HIGH);
 }"""
-        resp = self.send_request("tools/call", {
-            "name": "validate_hardware_code_mock",
-            "arguments": {"code_snippet": code, "component": "Arduino"}
-        })
+        resp = self.send_request(
+            "tools/call",
+            {
+                "name": "validate_hardware_code_mock",
+                "arguments": {"code_snippet": code, "component": "Arduino"},
+            },
+        )
         content = resp.get("result", {}).get("content", [])
         self.assertEqual(len(content), 1)
         data = json.loads(content[0].get("text"))
@@ -211,10 +227,13 @@ void loop() {
 
     def test_12_mock_default_fallback(self):
         """Test 12: Verify mock validation fallback logic when code does not match predefined scenarios."""
-        resp = self.send_request("tools/call", {
-            "name": "validate_hardware_code_mock",
-            "arguments": {"code_snippet": "void loop() {}", "component": "Generic"}
-        })
+        resp = self.send_request(
+            "tools/call",
+            {
+                "name": "validate_hardware_code_mock",
+                "arguments": {"code_snippet": "void loop() {}", "component": "Generic"},
+            },
+        )
         content = resp.get("result", {}).get("content", [])
         self.assertEqual(len(content), 1)
         data = json.loads(content[0].get("text"))
@@ -225,10 +244,13 @@ void loop() {
 
     def test_13_mock_empty_code_snippet(self):
         """Test 13: Verify mock validation behaves correctly when snippet is empty."""
-        resp = self.send_request("tools/call", {
-            "name": "validate_hardware_code_mock",
-            "arguments": {"code_snippet": "", "component": "Generic"}
-        })
+        resp = self.send_request(
+            "tools/call",
+            {
+                "name": "validate_hardware_code_mock",
+                "arguments": {"code_snippet": "", "component": "Generic"},
+            },
+        )
         content = resp.get("result", {}).get("content", [])
         self.assertEqual(len(content), 1)
         data = json.loads(content[0].get("text"))
@@ -237,9 +259,7 @@ void loop() {
 
     def test_14_real_missing_args(self):
         """Test 14: Verify real validation tool returns validation error when arguments are missing."""
-        resp = self.send_request("tools/call", {
-            "name": "validate_hardware_code"
-        })
+        resp = self.send_request("tools/call", {"name": "validate_hardware_code"})
         self.assertTrue(resp.get("result", {}).get("isError", False))
         content = resp.get("result", {}).get("content", [])
         self.assertEqual(len(content), 1)
@@ -247,10 +267,10 @@ void loop() {
 
     def test_15_real_missing_code_snippet(self):
         """Test 15: Verify real validation tool returns validation error when 'code_snippet' is missing."""
-        resp = self.send_request("tools/call", {
-            "name": "validate_hardware_code",
-            "arguments": {"component": "MPU6050"}
-        })
+        resp = self.send_request(
+            "tools/call",
+            {"name": "validate_hardware_code", "arguments": {"component": "MPU6050"}},
+        )
         self.assertTrue(resp.get("result", {}).get("isError", False))
         content = resp.get("result", {}).get("content", [])
         self.assertEqual(len(content), 1)
@@ -258,10 +278,13 @@ void loop() {
 
     def test_16_real_missing_component(self):
         """Test 16: Verify real validation tool returns validation error when 'component' is missing."""
-        resp = self.send_request("tools/call", {
-            "name": "validate_hardware_code",
-            "arguments": {"code_snippet": "void loop() {}"}
-        })
+        resp = self.send_request(
+            "tools/call",
+            {
+                "name": "validate_hardware_code",
+                "arguments": {"code_snippet": "void loop() {}"},
+            },
+        )
         self.assertTrue(resp.get("result", {}).get("isError", False))
         content = resp.get("result", {}).get("content", [])
         self.assertEqual(len(content), 1)
@@ -269,10 +292,13 @@ void loop() {
 
     def test_17_call_unknown_tool(self):
         """Test 17: Verify JSON-RPC error response when calling an unknown tool."""
-        resp = self.send_request("tools/call", {
-            "name": "invalid_tool_name",
-            "arguments": {"code_snippet": "void loop() {}"}
-        })
+        resp = self.send_request(
+            "tools/call",
+            {
+                "name": "invalid_tool_name",
+                "arguments": {"code_snippet": "void loop() {}"},
+            },
+        )
         self.assertTrue(resp.get("result", {}).get("isError", False))
         content = resp.get("result", {}).get("content", [])
         self.assertEqual(len(content), 1)
@@ -281,6 +307,7 @@ void loop() {
     def test_18_get_agent_system_prompt(self):
         """Test 18: Directly test get_agent_system_prompt returns the text of Archives/AGENT.md."""
         from MCP_Server import get_agent_system_prompt
+
         prompt = get_agent_system_prompt()
         self.assertIn("Hardware Auditor", prompt)
         self.assertIn("REGISTER-MAP INSPECTION RULES", prompt)
@@ -288,6 +315,7 @@ void loop() {
     def test_19_evaluate_logic_mock_direct(self):
         """Test 19: Directly test the evaluate_logic_mock helper logic."""
         from MCP_Server import evaluate_logic_mock
+
         code = """void setup() {
   Wire.beginTransmission(0x68);
   Wire.write(0x75);
@@ -298,6 +326,7 @@ void loop() {
         self.assertEqual(res.get("status"), "error")
         self.assertEqual(res.get("severity"), "high")
         self.assertEqual(res.get("line"), 4)
+
 
 if __name__ == "__main__":
     unittest.main()

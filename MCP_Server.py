@@ -14,7 +14,9 @@ import google.generativeai as genai
 from openai import AzureOpenAI, OpenAI
 
 # Configure logging to go to stderr (crucial for MCP to not corrupt stdout)
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stderr)
+logging.basicConfig(
+    level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stderr
+)
 logger = logging.getLogger(__name__)
 
 # Load environment variables (e.g., GEMINI_API_KEY, AZURE_OPENAI_API_KEY)
@@ -23,28 +25,43 @@ load_dotenv()
 # Initialize the MCP Server
 app = Server("specrag-backend")
 
+
 # Define JSON Schema via Pydantic for LLM structured output mapping
 class HardwareValidationResult(BaseModel):
     status: str = Field(description="'error' or 'success'")
-    severity: Optional[str] = Field(None, description="Error severity: 'high', 'medium', 'low', or null if success")
-    line: Optional[int] = Field(None, description="Exact line number of bug, or null if success")
-    message: str = Field(description="A one-sentence explanation of the hardware violation")
-    citation: str = Field(description="Specific section, table, or page proving the error. Empty if success.")
+    severity: Optional[str] = Field(
+        None, description="Error severity: 'high', 'medium', 'low', or null if success"
+    )
+    line: Optional[int] = Field(
+        None, description="Exact line number of bug, or null if success"
+    )
+    message: str = Field(
+        description="A one-sentence explanation of the hardware violation"
+    )
+    citation: str = Field(
+        description="Specific section, table, or page proving the error. Empty if success."
+    )
+
 
 # Dynamically import Node 1/2's retrieve_context function if present
 retrieve_context = None
 try:
     from rag import retrieve_context
+
     logger.info("Successfully imported retrieve_context from rag.py")
 except ImportError:
     # Use dynamic import to prevent static analysis linter errors for missing modules
     import importlib
+
     try:
         retrieve_module = importlib.import_module("retrieve")
         retrieve_context = getattr(retrieve_module, "retrieve_context", None)
         logger.info("Successfully imported retrieve_context from retrieve.py")
     except ImportError:
-        logger.info("No retrieve_context function found in rag.py or retrieve.py. Using mock retriever.")
+        logger.info(
+            "No retrieve_context function found in rag.py or retrieve.py. Using mock retriever."
+        )
+
 
 def get_llm_client():
     """
@@ -55,12 +72,17 @@ def get_llm_client():
     """
     azure_key = os.environ.get("AZURE_OPENAI_API_KEY")
     azure_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
-    
-    if azure_key and azure_endpoint and "your-" not in azure_key and "your-resource-name" not in azure_endpoint:
+
+    if (
+        azure_key
+        and azure_endpoint
+        and "your-" not in azure_key
+        and "your-resource-name" not in azure_endpoint
+    ):
         client = AzureOpenAI(
             api_key=azure_key,
             azure_endpoint=azure_endpoint,
-            api_version=os.environ.get("AZURE_OPENAI_API_VERSION", "2024-06-01")
+            api_version=os.environ.get("AZURE_OPENAI_API_VERSION", "2024-06-01"),
         )
         model = os.environ.get("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o")
         return "azure_openai", client, model
@@ -78,6 +100,7 @@ def get_llm_client():
     model = os.environ.get("GEMINI_MODEL_NAME", "gemini-2.5-flash")
     return "gemini", None, model
 
+
 @app.list_tools()
 async def list_tools() -> list[Tool]:
     """
@@ -90,11 +113,17 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "code_snippet": {"type": "string", "description": "The C/C++ code to validate"},
-                    "component": {"type": "string", "description": "Target component (e.g., 'MPU6050')"}
+                    "code_snippet": {
+                        "type": "string",
+                        "description": "The C/C++ code to validate",
+                    },
+                    "component": {
+                        "type": "string",
+                        "description": "Target component (e.g., 'MPU6050')",
+                    },
                 },
-                "required": ["code_snippet", "component"]
-            }
+                "required": ["code_snippet", "component"],
+            },
         ),
         Tool(
             name="validate_hardware_code",
@@ -102,13 +131,20 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "code_snippet": {"type": "string", "description": "The C/C++ code to validate"},
-                    "component": {"type": "string", "description": "Target component (e.g., 'MPU6050')"}
+                    "code_snippet": {
+                        "type": "string",
+                        "description": "The C/C++ code to validate",
+                    },
+                    "component": {
+                        "type": "string",
+                        "description": "Target component (e.g., 'MPU6050')",
+                    },
                 },
-                "required": ["code_snippet", "component"]
-            }
-        )
+                "required": ["code_snippet", "component"],
+            },
+        ),
     ]
+
 
 def evaluate_logic_mock(filtered_code: str, vector_context: str) -> dict:
     """
@@ -122,7 +158,7 @@ def evaluate_logic_mock(filtered_code: str, vector_context: str) -> dict:
             "severity": "high",
             "line": 42,
             "message": "Register 0x3F is read-only.",
-            "citation": "Datasheet Page 14, Table 3: Register Map"
+            "citation": "Datasheet Page 14, Table 3: Register Map",
         }
 
     lines = filtered_code.splitlines()
@@ -146,7 +182,7 @@ def evaluate_logic_mock(filtered_code: str, vector_context: str) -> dict:
             "severity": "high",
             "line": target_line,
             "message": "Attempted write to read-only register WHO_AM_I (0x75).",
-            "citation": "Datasheet Section 10.4, Register 0x75 (WHO_AM_I) description"
+            "citation": "Datasheet Section 10.4, Register 0x75 (WHO_AM_I) description",
         }
 
     # Scenario 2: Missing I2C Transmission Start
@@ -161,11 +197,15 @@ def evaluate_logic_mock(filtered_code: str, vector_context: str) -> dict:
             "severity": "medium",
             "line": target_line,
             "message": "I2C write operations occurred without a preceding beginTransmission call.",
-            "citation": "Arduino Wire Library Reference: beginTransmission is required before write."
+            "citation": "Arduino Wire Library Reference: beginTransmission is required before write.",
         }
 
     # Scenario 3: Pin Mode Mismatch (digitalWrite on INPUT pin)
-    if "pinMode" in filtered_code and "INPUT" in filtered_code and "digitalWrite" in filtered_code:
+    if (
+        "pinMode" in filtered_code
+        and "INPUT" in filtered_code
+        and "digitalWrite" in filtered_code
+    ):
         target_line = 10  # default fallback
         for idx, line in enumerate(lines, 1):
             if "digitalWrite" in line:
@@ -176,17 +216,21 @@ def evaluate_logic_mock(filtered_code: str, vector_context: str) -> dict:
             "severity": "low",
             "line": target_line,
             "message": "digitalWrite called on pin configured as INPUT.",
-            "citation": "Arduino Reference: pinMode must be set to OUTPUT for digitalWrite."
+            "citation": "Arduino Reference: pinMode must be set to OUTPUT for digitalWrite.",
         }
 
     # Scenario 4: Valid Configuration (Success)
-    if "pinMode" in filtered_code and "OUTPUT" in filtered_code and "digitalWrite" in filtered_code:
+    if (
+        "pinMode" in filtered_code
+        and "OUTPUT" in filtered_code
+        and "digitalWrite" in filtered_code
+    ):
         return {
             "status": "success",
             "severity": None,
             "line": None,
             "message": "No hardware issues detected.",
-            "citation": ""
+            "citation": "",
         }
 
     # Default fallback (original mock behavior)
@@ -195,8 +239,9 @@ def evaluate_logic_mock(filtered_code: str, vector_context: str) -> dict:
         "severity": "high",
         "line": 42,
         "message": "Register 0x3F is read-only.",
-        "citation": "Datasheet Page 14, Table 3: Register Map"
+        "citation": "Datasheet Page 14, Table 3: Register Map",
     }
+
 
 def evaluate_logic(filtered_code: str, vector_context: str) -> dict:
     """
@@ -206,19 +251,21 @@ def evaluate_logic(filtered_code: str, vector_context: str) -> dict:
     try:
         system_prompt = get_agent_system_prompt()
         user_prompt = f"Context:\n{vector_context}\n\nCode:\n{filtered_code}"
-        
+
         client_type, client, model_name = get_llm_client()
-        logger.info(f"Evaluating logic using LLM provider '{client_type}' with model '{model_name}'...")
-        
+        logger.info(
+            f"Evaluating logic using LLM provider '{client_type}' with model '{model_name}'..."
+        )
+
         if client_type in ("azure_openai", "openai"):
             response = client.beta.chat.completions.parse(
                 model=model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_prompt},
                 ],
                 response_format=HardwareValidationResult,
-                temperature=0.1
+                temperature=0.1,
             )
             result_json = response.choices[0].message.content
             return json.loads(result_json)
@@ -227,28 +274,25 @@ def evaluate_logic(filtered_code: str, vector_context: str) -> dict:
             gemini_schema = {
                 "type": "OBJECT",
                 "properties": {
-                    "status": {
-                        "type": "STRING",
-                        "description": "'error' or 'success'"
-                    },
+                    "status": {"type": "STRING", "description": "'error' or 'success'"},
                     "severity": {
                         "type": "STRING",
-                        "description": "Error severity: 'high', 'medium', 'low', or null if success"
+                        "description": "Error severity: 'high', 'medium', 'low', or null if success",
                     },
                     "line": {
                         "type": "INTEGER",
-                        "description": "Exact line number of bug, or null if success"
+                        "description": "Exact line number of bug, or null if success",
                     },
                     "message": {
                         "type": "STRING",
-                        "description": "A one-sentence explanation of the hardware violation"
+                        "description": "A one-sentence explanation of the hardware violation",
                     },
                     "citation": {
                         "type": "STRING",
-                        "description": "Specific section, table, or page proving the error. Empty if success."
-                    }
+                        "description": "Specific section, table, or page proving the error. Empty if success.",
+                    },
                 },
-                "required": ["status", "message", "citation"]
+                "required": ["status", "message", "citation"],
             }
             model = genai.GenerativeModel(model_name, system_instruction=system_prompt)
             response = model.generate_content(
@@ -256,13 +300,15 @@ def evaluate_logic(filtered_code: str, vector_context: str) -> dict:
                 generation_config=genai.GenerationConfig(
                     response_mime_type="application/json",
                     response_schema=gemini_schema,
-                    temperature=0.1
-                )
+                    temperature=0.1,
+                ),
             )
             return json.loads(response.text)
         else:
-            raise ValueError("No LLM provider configuration found. Set GEMINI_API_KEY or AZURE_OPENAI_API_KEY in .env.")
-            
+            raise ValueError(
+                "No LLM provider configuration found. Set GEMINI_API_KEY or AZURE_OPENAI_API_KEY in .env."
+            )
+
     except Exception as e:
         logger.error(f"Logic evaluation failed: {str(e)}")
         return {
@@ -270,8 +316,9 @@ def evaluate_logic(filtered_code: str, vector_context: str) -> dict:
             "severity": "high",
             "line": None,
             "message": f"Logic evaluation failed: {str(e)}",
-            "citation": ""
+            "citation": "",
         }
+
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
@@ -284,7 +331,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         # ---------------------------------------------------------
         code = arguments.get("code_snippet", "") if arguments else ""
         component = arguments.get("component", "") if arguments else ""
-        mock_response = evaluate_logic_mock(code, f"Mock retrieved context for {component}...")
+        mock_response = evaluate_logic_mock(
+            code, f"Mock retrieved context for {component}..."
+        )
         return [TextContent(type="text", text=json.dumps(mock_response))]
 
     elif name == "validate_hardware_code":
@@ -292,34 +341,51 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         # PHASE 2/3: THE REAL IMPLEMENTATION
         # ---------------------------------------------------------
         if not arguments:
-            return [TextContent(type="text", text=json.dumps({
-                "status": "system_error",
-                "severity": "high",
-                "line": None,
-                "message": "Missing arguments.",
-                "citation": ""
-            }))]
-            
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {
+                            "status": "system_error",
+                            "severity": "high",
+                            "line": None,
+                            "message": "Missing arguments.",
+                            "citation": "",
+                        }
+                    ),
+                )
+            ]
+
         code = arguments.get("code_snippet")
         component = arguments.get("component")
-        
+
         if not code or not component:
-            return [TextContent(type="text", text=json.dumps({
-                "status": "system_error",
-                "severity": "high",
-                "line": None,
-                "message": "Missing code_snippet or component parameter.",
-                "citation": ""
-            }))]
-        
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {
+                            "status": "system_error",
+                            "severity": "high",
+                            "line": None,
+                            "message": "Missing code_snippet or component parameter.",
+                            "citation": "",
+                        }
+                    ),
+                )
+            ]
+
         try:
             # 1. Filter the incoming code snippet via AST
             logger.info("Filtering C++ code snippet via AST parsing...")
             try:
                 from ast_parser import filter_hardware_logic
+
                 filtered_code = filter_hardware_logic(code)
             except Exception as ast_err:
-                logger.warning(f"AST parsing/filtering failed: {ast_err}. Using original code snippet.")
+                logger.warning(
+                    f"AST parsing/filtering failed: {ast_err}. Using original code snippet."
+                )
                 filtered_code = code
 
             # 2. Retrieve context (either via Node 1/2 function or fallback mock) using the filtered code
@@ -328,19 +394,25 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                     logger.info(f"Querying RAG database for component '{component}'...")
                     sig = inspect.signature(retrieve_context)
                     if "component_name" in sig.parameters:
-                        context = retrieve_context(component_name=component, code_snippet=filtered_code)
+                        context = retrieve_context(
+                            component_name=component, code_snippet=filtered_code
+                        )
                     else:
                         context = retrieve_context(component, filtered_code)
                 except Exception as rag_err:
-                    logger.warning(f"RAG retrieval failed: {rag_err}. Falling back to mock context.")
-                    context = f"Mock retrieved context for {component} from Node 1 DB..."
+                    logger.warning(
+                        f"RAG retrieval failed: {rag_err}. Falling back to mock context."
+                    )
+                    context = (
+                        f"Mock retrieved context for {component} from Node 1 DB..."
+                    )
             else:
                 context = f"Mock retrieved context for {component} from Node 1 DB..."
-            
+
             # 3. Run the evaluation using the filtered code
             result = evaluate_logic(filtered_code=filtered_code, vector_context=context)
             return [TextContent(type="text", text=json.dumps(result))]
-            
+
         except Exception as e:
             logger.error(f"Analysis failed: {str(e)}")
             error_payload = {
@@ -348,12 +420,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 "severity": "high",
                 "line": None,
                 "message": f"Analysis failed: {str(e)}",
-                "citation": ""
+                "citation": "",
             }
             return [TextContent(type="text", text=json.dumps(error_payload))]
-            
+
     else:
         raise ValueError(f"Unknown tool: {name}")
+
 
 def get_agent_system_prompt() -> str:
     """Returns the strict system prompt for the hardware validator agent."""
@@ -365,16 +438,15 @@ def get_agent_system_prompt() -> str:
         logger.warning(f"Strategy prompt {file_path} not found. Using fallback.")
         return "You are a hardware code validator. Analyze code against context and return strictly compliant JSON."
 
+
 async def main():
     """Runs the MCP server over standard input/output."""
     async with stdio_server() as (read_stream, write_stream):
-        await app.run(
-            read_stream,
-            write_stream,
-            app.create_initialization_options()
-        )
+        await app.run(read_stream, write_stream, app.create_initialization_options())
+
 
 if __name__ == "__main__":
     import sys
+
     print("SpecRAG MCP Server booting up...", file=sys.stderr)
     asyncio.run(main())
