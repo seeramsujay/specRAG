@@ -72,6 +72,23 @@ Run the MCP server locally over stdio:
 python Server.py
 ```
 
+### 4. VS Code Extension Installation (Node 4 Client)
+Since this is a desktop IDE extension, the deployment artifact is a compiled `.vsix` file.
+
+**To install the extension:**
+1. Download the compiled `specrag-vscode-0.1.0.vsix` file from the **GitHub Releases** assets (or use the locally generated file at `extension/specrag-vscode-0.1.0.vsix`).
+2. Open VS Code.
+3. Go to the Extensions View (`Ctrl+Shift+X` or `Cmd+Shift+X`).
+4. Click the `...` menu button in the top-right corner of the Extensions panel.
+5. Select **Install from VSIX...** from the dropdown menu.
+6. Select the downloaded `.vsix` file to install it.
+
+**Configuration Settings:**
+After installing, adjust the extension settings in VS Code (`specrag.*`):
+*   `specrag.pythonPath`: Set to the path of your virtual environment's Python binary (e.g., `/path/to/specRAG/venv/bin/python3`).
+*   `specrag.serverPath`: Set to the absolute path of `Server.py` in this repository (e.g., `/path/to/specRAG/Server.py`).
+*   `specrag.useMock`: Toggle to `true` to run dry-run mock validation checks offline without querying the live LLM.
+
 ## 🗺️ Roadmap Status
 - [x] **P1: Foundation**: MCP SDK Server shell & Protocol definition.
 - [x] **P2: Deep Build**: LLM integrations (Gemini, Azure OpenAI, OpenAI) & System Prompt engineering.
