@@ -363,3 +363,5 @@ vite.config.ts.timestamp-*
 
 # Local ChromaDB Vector Store
 vector_store/
+__pycache__/
+*.pyc
