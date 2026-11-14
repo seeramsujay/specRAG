@@ -1,4 +1,5 @@
 import logging
+
 import chromadb
 
 # Set up logging
@@ -71,7 +72,7 @@ def retrieve_context(component_name: str, code_snippet: str = "") -> str:
 
     except Exception as e:
         logger.error("Error occurred while querying database: %s", e, exc_info=True)
-        return f"Error retrieving context for component '{component_name}': {str(e)}"
+        return f"Error retrieving context for component '{component_name}': {e!s}"
 
 
 if __name__ == "__main__":

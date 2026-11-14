@@ -1,7 +1,8 @@
-import sys
 import logging
-from pypdf import PdfReader
+import sys
+
 from ingest import ingest_markdown
+from pypdf import PdfReader
 
 # Set up logging
 logging.basicConfig(
