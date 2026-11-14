@@ -1,17 +1,17 @@
 import asyncio
+import inspect
 import json
+import logging
 import os
 import sys
-import logging
-import inspect
+
+import google.generativeai as genai
 from dotenv import load_dotenv
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
-from typing import Optional
-from pydantic import BaseModel, Field
-import google.generativeai as genai
+from mcp.types import TextContent, Tool
 from openai import AzureOpenAI, OpenAI
+from pydantic import BaseModel, Field
 
 # Configure logging to go to stderr (crucial for MCP to not corrupt stdout)
 logging.basicConfig(
@@ -29,10 +29,10 @@ app = Server("specrag-backend")
 # Define JSON Schema via Pydantic for LLM structured output mapping
 class HardwareValidationResult(BaseModel):
     status: str = Field(description="'error' or 'success'")
-    severity: Optional[str] = Field(
+    severity: str | None = Field(
         None, description="Error severity: 'high', 'medium', 'low', or null if success"
     )
-    line: Optional[int] = Field(
+    line: int | None = Field(
         None, description="Exact line number of bug, or null if success"
     )
     message: str = Field(
@@ -310,12 +310,12 @@ def evaluate_logic(filtered_code: str, vector_context: str) -> dict:
             )
 
     except Exception as e:
-        logger.error(f"Logic evaluation failed: {str(e)}")
+        logger.error(f"Logic evaluation failed: {e!s}")
         return {
             "status": "system_error",
             "severity": "high",
             "line": None,
-            "message": f"Logic evaluation failed: {str(e)}",
+            "message": f"Logic evaluation failed: {e!s}",
             "citation": "",
         }
 
@@ -414,12 +414,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return [TextContent(type="text", text=json.dumps(result))]
 
         except Exception as e:
-            logger.error(f"Analysis failed: {str(e)}")
+            logger.error(f"Analysis failed: {e!s}")
             error_payload = {
                 "status": "system_error",
                 "severity": "high",
                 "line": None,
-                "message": f"Analysis failed: {str(e)}",
+                "message": f"Analysis failed: {e!s}",
                 "citation": "",
             }
             return [TextContent(type="text", text=json.dumps(error_payload))]

@@ -1,7 +1,7 @@
-import os
-import sys
 import json
+import os
 import subprocess
+import sys
 import unittest
 
 # Ensure the workspace root is in python path so we can import MCP_Server

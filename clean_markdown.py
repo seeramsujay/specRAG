@@ -1,5 +1,5 @@
-from bs4 import BeautifulSoup, Comment
 import markdownify
+from bs4 import BeautifulSoup, Comment
 
 
 class RegisterMarkdownConverter(markdownify.MarkdownConverter):
