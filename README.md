@@ -1,39 +1,54 @@
-# 🦾 SpecRAG: Zero-Hallucination Firmware Auditing
-### **RAG-Powered Hardware Validation via Model Context Protocol (MCP)**
+<p align="center">
+  <img src="assets/logo.svg" alt="SpecRAG Logo" width="220" />
+</p>
 
-[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](file:///home/suzaykid/Projects/specRAG/Archives/LICENSE)
-[![Built with: MCP](https://img.shields.io/badge/Built%20with-MCP-orange)](https://modelcontextprotocol.io)
-[![Backend: Gemini / Azure OpenAI / OpenAI](https://img.shields.io/badge/Backend-Gemini%20%7C%20Azure%20OpenAI%20%7C%20OpenAI-7e57c2)](https://openai.com)
+<h1 align="center">SpecRAG</h1>
+
+<p align="center">
+  <strong>Zero-Hallucination Firmware Auditing &amp; Hardware Specification RAG via Model Context Protocol (MCP)</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/License-GPL--3.0-blue.svg?style=flat-square" alt="License: GPL-3.0">
+  <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/Built%20with-MCP-orange.svg?style=flat-square" alt="Built with MCP"></a>
+  <img src="https://img.shields.io/badge/Backend-Gemini_%7C_OpenAI-7e57c2.svg?style=flat-square" alt="LLM Backends">
+  <img src="https://img.shields.io/badge/Client-VS_Code_Extension-007ACC.svg?style=flat-square&logo=visualstudiocode" alt="VS Code Extension">
+  <a href="future.md"><img src="https://img.shields.io/badge/roadmap-future.md-blueviolet.svg?style=flat-square" alt="Roadmap"></a>
+</p>
 
 > **"Hardware is hard, but it shouldn't be silent."**
 
-**SpecRAG** is a high-precision firmware validation engine that bridges the "semantic gap" between 1,000-page hardware datasheets and your C/C++ firmware. It uses a **Model Context Protocol (MCP)** server to inject real-time register-level intelligence directly into your IDE, catching fatal violations before they ever reach a PCB.
-
-![SpecRAG VS Code Mockup](Archives/assets/vscode_mockup.png)
+**SpecRAG** is a high-precision firmware validation engine that bridges the "semantic gap" between 1,000-page hardware datasheets and your C/C++ firmware. It uses a **Model Context Protocol (MCP)** server to inject real-time register-level intelligence directly into your IDE, catching fatal violations before they ever reach a physical PCB.
 
 ---
 
 ## 📑 The Silent Failure Problem
+
 Embedded C/C++ compilers are excellent at catching syntax errors, but they are blind to hardware intent. A developer can write clean, valid C++ that:
 - Writes to **Read-Only** memory-mapped registers.
 - Uses an incorrect **I2C/SPI slave address**.
 - Violates **timing constraints** (e.g., reading a sensor before its 100ms startup delay).
 - Configures **clock bitmasks** that unintentionally disable critical peripherals.
 
-These errors lead to weeks of oscilloscope debugging or, worse, charred silicon. SpecRAG moves these "Runtime Disasters" to "Compile-time Squiggles."
+These errors lead to weeks of oscilloscope debugging or charred silicon. SpecRAG moves these "Runtime Disasters" to "Compile-time Squiggles."
+
+---
 
 ## 🚀 Key Innovation: The SpecRAG Stack
 
 ### 1. Zero-Hallucination RAG
-SpecRAG doesn't rely on the LLM's internal (and often outdated) knowledge of hardware. It uses a custom **RAG Pipeline** (Node 1) to retrieve the exact table or register description from the component's **PDF Datasheet** and feeds it as "Ground Truth" to the auditor.
+SpecRAG doesn't rely on the LLM's internal (and often outdated) knowledge of hardware. It uses a custom **RAG Pipeline** to retrieve the exact table or register description from the component's **PDF Datasheet** and feeds it as "Ground Truth" to the auditor.
 
 ### 2. Structured Output Guarantee (Pydantic)
-Using **Gemini 1.5 Flash's Structured Output API** and **Pydantic** models, SpecRAG mathematically guarantees that the auditor's response is valid JSON. It cannot return "conversational fluff"—only actionable data for the VS Code UI.
+Using **Gemini 1.5 Flash's Structured Output API** and **Pydantic** models, SpecRAG mathematically guarantees that the auditor's response is valid JSON. It cannot return "conversational fluff"—only actionable diagnostic data for the VS Code UI.
 
 ### 3. MCP Decoupling
 By using the **Model Context Protocol**, the "Brain" (AI) is completely decoupled from the "Body" (IDE). You can run the SpecRAG server on a powerful lab machine while coding on a lightweight laptop.
 
+---
+
 ## 🏗️ System Architecture
+
 ```mermaid
 graph TD
     User[Developer: .cpp / .ino] -->|File Save/Edit| MCP_Client[Node 3: VS Code Extension]
@@ -46,6 +61,8 @@ graph TD
     MCP_Client -->|Red Squiggly| User
 ```
 
+---
+
 ## 🛠️ Installation & Setup
 
 ### 1. Requirements
@@ -57,7 +74,7 @@ graph TD
 
 ### 2. Quick Start
 ```bash
-git clone https://github.com/suzaykid/specRAG.git
+git clone https://github.com/seeramsujay/specRAG.git
 cd specRAG
 python -m venv venv
 source venv/bin/activate  # Or venv\Scripts\activate on Windows
@@ -89,6 +106,14 @@ After installing, adjust the extension settings in VS Code (`specrag.*`):
 *   `specrag.serverPath`: Set to the absolute path of `Server.py` in this repository (e.g., `/path/to/specRAG/Server.py`).
 *   `specrag.useMock`: Toggle to `true` to run dry-run mock validation checks offline without querying the live LLM.
 
+---
+
+## 🔮 Engineering Roadmap
+
+For details on Multimodal Vision OCR for component tables, Tree-Sitter AST incremental background evaluation, and Wokwi virtual breadboard simulation, explore [future.md](future.md).
+
+---
+
 ## 🗺️ Roadmap Status
 - [x] **P1: Foundation**: MCP SDK Server shell & Protocol definition.
 - [x] **P2: Deep Build**: LLM integrations (Gemini, Azure OpenAI, OpenAI) & System Prompt engineering.
@@ -100,11 +125,6 @@ For internal contributors, please refer to:
 - **[Users.md](Users.md)**: Node-specific handover instructions.
 - **[CHANGELOG.md](CHANGELOG.md)**: Detailed technical history and recently fixed path/protocol bugs.
 - **[Archives/AGENT.md](Archives/AGENT.md)**: The "Senior Auditor" personality configuration.
-
----
-
-*This project is licensed under the GPL-3.0 License. Built for the Hackathon by Node 2.*
-
 
 ---
 
